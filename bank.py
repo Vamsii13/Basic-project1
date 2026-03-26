@@ -2,17 +2,17 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import random
-import plotly.express as px
 
-# ---------- CONFIG ----------
+# ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="NeoBank", layout="wide")
 
-# ---------- CSS ----------
+# ---------- CUSTOM CSS ----------
 st.markdown("""
 <style>
 .stApp {
     background: linear-gradient(135deg,#0f172a,#1e293b);
-    color:white;
+    color: white;
+    font-family: 'Segoe UI', sans-serif;
 }
 
 /* Title */
@@ -23,6 +23,7 @@ st.markdown("""
     background: linear-gradient(90deg,#6366f1,#ec4899);
     -webkit-background-clip:text;
     color:transparent;
+    margin-bottom: 20px;
 }
 
 /* Card */
@@ -31,16 +32,16 @@ st.markdown("""
     padding:20px;
     border-radius:15px;
     border:1px solid rgba(255,255,255,0.1);
-    margin-bottom:10px;
+    text-align:center;
 }
 
 /* Balance */
 .balance {
-    font-size:2.5rem;
+    font-size:2.2rem;
     font-weight:bold;
 }
 
-/* Button */
+/* Buttons */
 .stButton button {
     background: linear-gradient(135deg,#6366f1,#ec4899);
     color:white;
@@ -48,6 +49,11 @@ st.markdown("""
     border-radius:10px;
     padding:10px 20px;
     font-weight:bold;
+}
+
+/* Inputs */
+.stTextInput input, .stNumberInput input {
+    border-radius: 8px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -61,112 +67,130 @@ class Bank:
         self.card = " ".join([str(random.randint(1000,9999)) for _ in range(4)])
 
     def transact(self, t, amt, cat):
-        if t=="Withdraw" and amt>self.balance:
+        if t == "Withdraw" and amt > self.balance:
             return False
 
-        self.balance += amt if t=="Deposit" else -amt
+        if t == "Deposit":
+            self.balance += amt
+        else:
+            self.balance -= amt
 
         self.transactions.append({
-            "type":t,
-            "amount":amt,
-            "category":cat,
-            "time":datetime.now(),
-            "balance":self.balance
+            "Type": t,
+            "Amount": amt,
+            "Category": cat,
+            "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Balance": self.balance
         })
         return True
 
-    def df(self):
+    def get_df(self):
         return pd.DataFrame(self.transactions)
 
 # ---------- SESSION ----------
 if "user" not in st.session_state:
-    st.session_state.user=None
+    st.session_state.user = None
 
 # ---------- TITLE ----------
 st.markdown('<div class="title">🚀 NeoBank</div>', unsafe_allow_html=True)
 
-# ---------- LOGIN ----------
+# ---------- LOGIN PAGE ----------
 if not st.session_state.user:
-    st.subheader("Create Account")
 
-    name = st.text_input("Name")
-    bal = st.number_input("Initial Balance",0)
+    st.subheader("Create Your Account")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        name = st.text_input("Enter Name")
+
+    with col2:
+        balance = st.number_input("Initial Balance", min_value=0)
 
     if st.button("Create Account"):
-        if name:
-            st.session_state.user = Bank(name, bal)
-            st.success("Account Created")
+        if name.strip():
+            st.session_state.user = Bank(name, balance)
+            st.success("✅ Account Created Successfully!")
             st.rerun()
         else:
-            st.error("Enter name")
+            st.error("⚠️ Please enter your name")
 
 # ---------- DASHBOARD ----------
 else:
     user = st.session_state.user
 
-    st.subheader(f"Welcome {user.name}")
+    st.subheader(f"Welcome, {user.name} 👋")
 
-    # Top Cards
-    c1,c2,c3 = st.columns(3)
+    # ---------- TOP CARDS ----------
+    c1, c2, c3 = st.columns(3)
 
-    c1.markdown(f"<div class='card'>💰 Balance<br><div class='balance'>₹{user.balance}</div></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='card'>📊 Transactions<br>{len(user.transactions)}</div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='card'>💳 Card<br>{user.card}</div>", unsafe_allow_html=True)
+    c1.markdown(f"""
+    <div class='card'>
+        💰 Balance
+        <div class='balance'>₹{user.balance}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c2.markdown(f"""
+    <div class='card'>
+        📊 Transactions
+        <div class='balance'>{len(user.transactions)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c3.markdown(f"""
+    <div class='card'>
+        💳 Card Number
+        <div class='balance'>{user.card}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
 
-    # Transaction
-    st.subheader("Make Transaction")
+    # ---------- TRANSACTION ----------
+    st.subheader("💸 Make a Transaction")
 
-    col1,col2,col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-    t = col1.selectbox("Type",["Deposit","Withdraw"])
-    amt = col2.number_input("Amount",1)
-    cat = col3.selectbox("Category",["Food","Shopping","Bills","Travel","Other"])
+    t = col1.selectbox("Transaction Type", ["Deposit", "Withdraw"])
+    amt = col2.number_input("Amount", min_value=1)
+    cat = col3.selectbox("Category", ["Food", "Shopping", "Bills", "Travel", "Other"])
 
-    if st.button("Proceed"):
-        if user.transact(t,amt,cat):
-            st.success("Transaction Successful")
+    if st.button("Proceed Transaction"):
+        success = user.transact(t, amt, cat)
+
+        if success:
+            st.success("✅ Transaction Successful")
         else:
-            st.error("Insufficient Balance")
+            st.error("❌ Insufficient Balance")
 
     st.divider()
 
-    # Data
-    df = user.df()
+    # ---------- DATA ----------
+    df = user.get_df()
 
     if not df.empty:
 
-        # Chart
-        st.subheader("Analytics")
+        # ---------- BALANCE TREND ----------
+        st.subheader("📈 Balance Trend")
+        df_chart = df.copy()
+        df_chart["Time"] = pd.to_datetime(df_chart["Time"])
+        df_chart = df_chart.set_index("Time")
+        st.line_chart(df_chart["Balance"])
 
-        spend = df[df["type"]=="Withdraw"].groupby("category")["amount"].sum()
+        # ---------- CATEGORY SUMMARY ----------
+        st.subheader("📊 Spending Summary")
+        spend = df[df["Type"] == "Withdraw"].groupby("Category")["Amount"].sum()
+        st.bar_chart(spend)
 
-        if not spend.empty:
-            fig = px.bar(
-                x=spend.index,
-                y=spend.values,
-                labels={'x':'Category','y':'Amount'}
-            )
-            fig.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font_color='white'
-            )
-            st.plotly_chart(fig,use_container_width=True)
-
-        # Line Chart
-        st.subheader("Balance Trend")
-        st.line_chart(df.set_index("time")["balance"])
-
-        # Table
-        st.subheader("Transactions")
-        st.dataframe(df,use_container_width=True)
+        # ---------- TABLE ----------
+        st.subheader("📋 Transaction History")
+        st.dataframe(df, use_container_width=True)
 
     else:
-        st.info("No transactions yet")
+        st.info("No transactions yet...")
 
-    # Logout
+    # ---------- LOGOUT ----------
     if st.button("Logout"):
-        st.session_state.user=None
+        st.session_state.user = None
         st.rerun()
