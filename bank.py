@@ -4,193 +4,128 @@ from datetime import datetime
 import random
 
 # ---------- PAGE CONFIG ----------
-st.set_page_config(page_title="NeoBank", layout="wide")
+st.set_page_config(page_title="NeoBank 🏦", layout="wide")
 
-# ---------- CUSTOM CSS ----------
+# ---------- TARGETED COLOR CSS ----------
 st.markdown("""
 <style>
+/* Base Theme */
 .stApp {
-    background: linear-gradient(135deg,#0f172a,#1e293b);
-    color: white;
-    font-family: 'Segoe UI', sans-serif;
+    background-color: #0d1117;
+    color: #ffffff;
 }
 
-/* Title */
-.title {
-    font-size: 3rem;
-    font-weight: 800;
-    text-align:center;
-    background: linear-gradient(90deg,#6366f1,#ec4899);
-    -webkit-background-clip:text;
-    color:transparent;
-    margin-bottom: 20px;
+/* Force visibility on Selectbox (Action & Category) */
+div[data-baseweb="select"] > div {
+    background-color: #1f2937 !important; /* Dark grey-blue background */
+    border: 2px solid #3b82f6 !important; /* Bright blue border */
+    border-radius: 10px !important;
 }
 
-/* Card */
+/* Text inside the dropdowns */
+div[data-testid="stMarkdownContainer"] p {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Label colors for Action and Category */
+label[data-testid="stWidgetLabel"] {
+    color: #00d4ff !important; /* Neon blue labels */
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+}
+
+/* Card Styling */
 .card {
-    background: rgba(255,255,255,0.05);
-    padding:20px;
-    border-radius:15px;
-    border:1px solid rgba(255,255,255,0.1);
-    text-align:center;
+    background-color: #161b22;
+    padding: 1.5rem;
+    border-radius: 15px;
+    border: 1px solid #30363d;
+    margin-bottom: 1rem;
 }
 
-/* Balance */
-.balance {
-    font-size:2.2rem;
-    font-weight:bold;
-}
+/* Highlight specific values */
+.balance { color: #22c55e !important; font-size: 2rem; font-weight: 800; }
+.card-number { color: #eab308 !important; letter-spacing: 2px; font-weight: 700; }
 
-/* Buttons */
-.stButton button {
-    background: linear-gradient(135deg,#6366f1,#ec4899);
-    color:white;
-    border:none;
-    border-radius:10px;
-    padding:10px 20px;
-    font-weight:bold;
-}
-
-/* Inputs */
-.stTextInput input, .stNumberInput input {
-    border-radius: 8px;
+/* Button Visibility */
+.stButton>button {
+    background-image: linear-gradient(to right, #2563eb, #7c3aed) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: bold !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- BACKEND ----------
-class Bank:
-    def __init__(self, name, balance):
-        self.name = name
-        self.balance = balance
-        self.transactions = []
-        self.card = " ".join([str(random.randint(1000,9999)) for _ in range(4)])
-
-    def transact(self, t, amt, cat):
-        if t == "Withdraw" and amt > self.balance:
-            return False
-
-        if t == "Deposit":
-            self.balance += amt
-        else:
-            self.balance -= amt
-
-        self.transactions.append({
-            "Type": t,
-            "Amount": amt,
-            "Category": cat,
-            "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Balance": self.balance
-        })
-        return True
-
-    def get_df(self):
-        return pd.DataFrame(self.transactions)
-
-# ---------- SESSION ----------
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# ---------- TITLE ----------
-st.markdown('<div class="title">🚀 NeoBank</div>', unsafe_allow_html=True)
+class Bank:
+    def __init__(self, name, balance):
+        self.name, self.balance = name, float(balance)
+        self.transactions = []
+        self.card = " ".join([f"{random.randint(1000, 9999):04}" for _ in range(4)])
 
-# ---------- LOGIN PAGE ----------
+    def transact(self, t, amt, cat):
+        amt = float(amt)
+        if t == "Withdraw" and amt > self.balance: return False
+        self.balance += amt if t == "Deposit" else -amt
+        self.transactions.append({"Type": t, "Amount": amt, "Category": cat, "Balance": self.balance})
+        return True
+
+# ---------- UI ----------
+st.title("🏦 NeoBank")
+
 if not st.session_state.user:
-
     st.subheader("Create Your Account")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        name = st.text_input("Enter Name")
-
-    with col2:
-        balance = st.number_input("Initial Balance", min_value=0)
-
-    if st.button("Create Account"):
-        if name.strip():
-            st.session_state.user = Bank(name, balance)
-            st.success("✅ Account Created Successfully!")
-            st.rerun()
-        else:
-            st.error("⚠️ Please enter your name")
-
-# ---------- DASHBOARD ----------
+    with st.container():
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        name = st.text_input("Full Name")
+        bal = st.number_input("Initial Deposit", min_value=0.0, value=1000.0)
+        if st.button("Get Started"):
+            if name: 
+                st.session_state.user = Bank(name, bal)
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 else:
-    user = st.session_state.user
-
-    st.subheader(f"Welcome, {user.name} 👋")
-
-    # ---------- TOP CARDS ----------
+    u = st.session_state.user
+    
+    # Top Metrics
     c1, c2, c3 = st.columns(3)
+    c1.markdown(f'<div class="card">Wallet Balance<br><span class="balance">₹{u.balance:,.2f}</span></div>', unsafe_allow_html=True)
+    c2.markdown(f'<div class="card">Card Number<br><span class="card-number">{u.card}</span></div>', unsafe_allow_html=True)
+    c3.markdown(f'<div class="card">Transactions<br><span style="font-size:2rem; color:#3b82f6;">{len(u.transactions)}</span></div>', unsafe_allow_html=True)
 
-    c1.markdown(f"""
-    <div class='card'>
-        💰 Balance
-        <div class='balance'>₹{user.balance}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Transaction Form (The section you wanted changed)
+    st.markdown("### 💸 Move Money")
+    with st.container():
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        col_action, col_amt, col_cat = st.columns(3)
+        
+        # Action Dropdown
+        t_type = col_action.selectbox("Choose Action", ["Deposit", "Withdraw"], help="Select the type of movement")
+        
+        # Amount Input
+        t_amt = col_amt.number_input("Enter Amount (₹)", min_value=1.0)
+        
+        # Category Dropdown
+        t_cat = col_cat.selectbox("Select Category", ["Food & Dining", "Shopping", "Utility Bills", "Travel", "Personal Care", "Investment"])
+        
+        if st.button("Confirm Transfer", use_container_width=True):
+            if u.transact(t_type, t_amt, t_cat):
+                st.toast(f"{t_type} successful!", icon="✅")
+                st.rerun()
+            else:
+                st.error("Insufficient Funds!")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    c2.markdown(f"""
-    <div class='card'>
-        📊 Transactions
-        <div class='balance'>{len(user.transactions)}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # History Table
+    if u.transactions:
+        st.markdown("### 📋 History")
+        st.dataframe(pd.DataFrame(u.transactions), use_container_width=True)
 
-    c3.markdown(f"""
-    <div class='card'>
-        💳 Card Number
-        <div class='balance'>{user.card}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-
-    # ---------- TRANSACTION ----------
-    st.subheader("💸 Make a Transaction")
-
-    col1, col2, col3 = st.columns(3)
-
-    t = col1.selectbox("Transaction Type", ["Deposit", "Withdraw"])
-    amt = col2.number_input("Amount", min_value=1)
-    cat = col3.selectbox("Category", ["Food", "Shopping", "Bills", "Travel", "Other"])
-
-    if st.button("Proceed Transaction"):
-        success = user.transact(t, amt, cat)
-
-        if success:
-            st.success("✅ Transaction Successful")
-        else:
-            st.error("❌ Insufficient Balance")
-
-    st.divider()
-
-    # ---------- DATA ----------
-    df = user.get_df()
-
-    if not df.empty:
-
-        # ---------- BALANCE TREND ----------
-        st.subheader("📈 Balance Trend")
-        df_chart = df.copy()
-        df_chart["Time"] = pd.to_datetime(df_chart["Time"])
-        df_chart = df_chart.set_index("Time")
-        st.line_chart(df_chart["Balance"])
-
-        # ---------- CATEGORY SUMMARY ----------
-        st.subheader("📊 Spending Summary")
-        spend = df[df["Type"] == "Withdraw"].groupby("Category")["Amount"].sum()
-        st.bar_chart(spend)
-
-        # ---------- TABLE ----------
-        st.subheader("📋 Transaction History")
-        st.dataframe(df, use_container_width=True)
-
-    else:
-        st.info("No transactions yet...")
-
-    # ---------- LOGOUT ----------
     if st.button("Logout"):
         st.session_state.user = None
         st.rerun()
